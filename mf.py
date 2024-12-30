@@ -31,16 +31,16 @@ def investment_purchase_history(investment):
 	st.divider()
 
 	mf_data = mf.get_scheme_historical_nav(investment["code"], as_Dataframe=True)
-	mf_data = mf_data.reset_index()		
-	mf_data["date"] = pd.to_datetime(mf_data["date"], dayfirst=True).sort_values() 			
-	
-	
+	mf_data = mf_data.reset_index()
+	mf_data["date"] = pd.to_datetime(mf_data["date"], dayfirst=True).sort_values()
+
+
 	file = INVESTMENTS_FILE_FOLDER.format(file=investment["code"])
 
-	my_invest_data =  pd.read_csv(file,  index_col=False)	
+	my_invest_data =  pd.read_csv(file,  index_col=False)
 	my_invest_data.drop_duplicates(inplace=True)
-	my_invest_data = my_invest_data.reset_index()				
-	my_invest_data["date"] = pd.to_datetime(my_invest_data["date"], dayfirst=True).sort_values() 			
+	my_invest_data = my_invest_data.reset_index()
+	my_invest_data["date"] = pd.to_datetime(my_invest_data["date"], dayfirst=True).sort_values()
 
 
 	mf_data = mf_data[mf_data['date'] >= my_invest_data["date"].min()]
@@ -51,14 +51,14 @@ def investment_purchase_history(investment):
 	fig.add_trace(go.Scatter(x=my_invest_data["date"], y=my_invest_data["nav"],
 		mode='lines+markers',
 		name='All Investments (SIP + Lumpsum)',
-		marker=dict(color='rgb(255,0,0)', size=6))) 
-	
+		marker=dict(color='rgb(255,0,0)', size=6)))
+
 	my_lumpsum_invest_data = my_invest_data[my_invest_data["sip_type"] == "Lumpsum"]
 	fig.add_trace(go.Scatter(x=my_lumpsum_invest_data["date"], y=my_lumpsum_invest_data["nav"],
 		mode='markers',
 		name='Lumpsum',
-		marker=dict(color='LightSkyBlue', size=8, symbol="diamond"))) 
-	
+		marker=dict(color='LightSkyBlue', size=8, symbol="diamond")))
+
 	st.plotly_chart(fig)
 
 
@@ -67,7 +67,7 @@ def scheme_performance(scheme):
 	st.divider()
 
 	ticker = Ticker(scheme['ticker'])
-		
+
 	st.markdown("<h5 style='text-align: center; color: LightSkyBlue;'>Scheme Holding Sectors</h1>", unsafe_allow_html=True)
 	sector_weightings = ticker.fund_sector_weightings
 	st.plotly_chart(px.bar(sector_weightings.sort_values(scheme['ticker']), orientation='h'))
@@ -75,7 +75,7 @@ def scheme_performance(scheme):
 	with st.expander("Detail Breakup"):
 		st.write(ticker.fund_top_holdings[["holdingName", "holdingPercent"]])
 
-	
+
 	st.markdown("<h5 style='text-align: center; color: LightSkyBlue;'>Returns by scheme</h1>", unsafe_allow_html=True)
 
 
@@ -97,10 +97,10 @@ def scheme_performance(scheme):
 	df = df.sort_values('date')
 	df = df.query("date >= @start_date and date <=@end_date").reset_index(drop=True)
 
- 
+
 	df['daily_returns'] = df['nav'].pct_change()
 	df['cumulative_returns'] = (df['daily_returns']+1).cumprod()
-	
+
 
 	# df.plot(x='date', y='cumulative_returns', color='orange')
 	# plt.title('Cumulative Returns Plot')
@@ -109,7 +109,7 @@ def scheme_performance(scheme):
 	fig= px.line(df, title="Cumulative Returns", x='date', y='cumulative_returns')
 	fig.update_traces(line_color='#FFA500', line_width=2)
 	st.plotly_chart(fig)
-	
+
 	with st.expander("Detail Breakup"):
 		st.write(df)
 
@@ -117,38 +117,34 @@ def scheme_performance(scheme):
 def my_investment_analysis():
 	selected_scheme_name = st.selectbox("Select a scheme",  [inv['name'] for inv in INVESTMENTS])
 	selected_investment = next((item for item in INVESTMENTS if item["name"] == selected_scheme_name), None)
-	
+
 	print_scheme_details(mf.get_scheme_details(selected_investment["code"]))
 	investment_purchase_history(selected_investment)
 	scheme_performance(selected_investment)
-	
 
 
 
-def compare_navs():
-	selectedSchemes = st.multiselect("Select schems to compare", options=list(schemeNames.keys()))
+
+def compare_navs(scheme_names):
+	selectedSchemes = st.multiselect("Select schems to compare", options=list(scheme_names.keys()))
 	if selectedSchemes:
 		comparisionDF = pd.DataFrame()
 		for scheme in selectedSchemes:
-			details = mf.get_scheme_details(schemeNames[scheme])
-			st.write(details)
-
-			code = schemeNames[scheme]
+			code = scheme_names[scheme]
 			data = mf.get_scheme_historical_nav(code, as_Dataframe=True)
-			data = data.reset_index().rename(columns={"index" : "date"})		
-			data["date"] = pd.to_datetime(data["date"], dayfirst=True).sort_values() 			
+			data = data.reset_index().rename(columns={"index" : "date"})
+			data["date"] = pd.to_datetime(data["date"], dayfirst=True).sort_values()
 			data["nav"] = data["nav"].replace(0, None).interpolate()
 			comparisionDF[scheme] = data.set_index("date")["nav"]
-
-
-			fig= px.line(comparisionDF, title="Comparision NAVs")
-			st.plotly_chart(fig)
-
+		
+		fig= px.line(comparisionDF, title="Comparision NAVs")
+		st.plotly_chart(fig)
 
 
 
 mf = Mftool()
 st.title('Mutual Fund Financial Dashboard')
+all_scheme_names = {v: k for k, v in mf.get_scheme_codes().items()}
 
 option = st.sidebar.selectbox(
 	"Choose an Action",
@@ -156,13 +152,13 @@ option = st.sidebar.selectbox(
 )
 
 
-if option == "My Investments":	
+if option == "My Investments":
 	st.header("My Investments:")
-	my_investment_analysis() 
+	my_investment_analysis()
 
 if option == "Compare NAVs":
 		st.header("Compare NAVs")
-		compare_navs()
+		compare_navs(all_scheme_names)
 
 
 
